@@ -8,6 +8,10 @@ type RepositoryStore interface {
 	WriteRecord()
 }
 
+type RepositoryBehaviorFactory[TEntry any, TBehavior any] interface {
+	GetBehavior(identity EntryIdentifier, entry TEntry) TBehavior
+}
+
 type IRepository interface {
 }
 
@@ -15,55 +19,57 @@ type Pair struct {
 	a, b interface{}
 }
 
-type Repository[TEntry any] struct {
-	store *RepositoryStore
+type Repository[TEntry any, TBehavior any] struct {
+	store           *RepositoryStore
+	behaviorFactory *RepositoryBehaviorFactory[TEntry, TBehavior]
 	// basic storage for repo objects
-	entries map[EntryIdentifier]RepositoryEntry[TEntry]
+	entries map[EntryIdentifier]RepositoryEntry[TEntry, TBehavior]
 
-	entriesByNamespace map[string]map[string]*RepositoryEntry[TEntry]
+	entriesByNamespace map[string]map[string]*RepositoryEntry[TEntry, TBehavior]
 }
 
-func NewRepository[TEntryIdentifier EntryIdentifier, TEntry any](store RepositoryStore) *Repository[TEntry] {
-	rep := Repository[TEntry]{store: &store}
-	rep.entries = make(map[EntryIdentifier]RepositoryEntry[TEntry])
-	rep.entriesByNamespace = make(map[string]map[string]*RepositoryEntry[TEntry])
+func NewRepository[TEntry any, TBehavior any](store RepositoryStore, behaviorFactory RepositoryBehaviorFactory[TEntry, TBehavior]) *Repository[TEntry, TBehavior] {
+	rep := Repository[TEntry, TBehavior]{store: &store, behaviorFactory: &behaviorFactory}
+	rep.entries = make(map[EntryIdentifier]RepositoryEntry[TEntry, TBehavior])
+	rep.entriesByNamespace = make(map[string]map[string]*RepositoryEntry[TEntry, TBehavior])
+
 	return &rep
 }
 
 // base implementation
-func (repo Repository[TEntry]) AddEntry(re RepositoryEntry[TEntry]) {
+func (repo Repository[TEntry, TBehavior]) AddEntry(re RepositoryEntry[TEntry, TBehavior]) {
 	ns := re.identity.GetNamespace()
 
 	name := re.identity.GetName()
 	repo.entries[re.identity] = re
 
 	if repo.entriesByNamespace[ns] == nil {
-		repo.entriesByNamespace[ns] = make(map[string]*RepositoryEntry[TEntry])
+		repo.entriesByNamespace[ns] = make(map[string]*RepositoryEntry[TEntry, TBehavior])
 	}
 
 	repo.entriesByNamespace[ns][name] = &re
 }
 
-func (repo Repository[TEntry]) AddEntryById(identifier EntryIdentifier, entry TEntry) {
-	r := RepositoryEntry[TEntry]{identity: identifier, entry: entry}
-	repo.AddEntry(r)
+func (repo Repository[TEntry, TBehavior]) AddEntryById(identifier EntryIdentifier, entry TEntry) {
+	re := RepositoryEntry[TEntry, TBehavior]{identity: identifier, entry: entry}
+	re.behavior = (*repo.behaviorFactory).GetBehavior(re.identity, re.entry)
+	repo.AddEntry(re)
 }
 
-func (repo Repository[TEntry]) AddEntryByName(namespace string, name string, entry TEntry) {
-	//	var identifier = SimpleIdentifier{namespace: namespace, name: name}
-	//	r := RepositoryEntry[TEntryIdentifier, TEntry]{identity: TEntryIdentifier(identifier, entry: entry}
-	//	repo.AddEntry(r)
+func (repo Repository[TEntry, TBehavior]) AddEntryByName(namespace string, name string, entry TEntry) {
+	var identifier = SimpleIdentifier{namespace: namespace, name: name}
+	repo.AddEntryById(identifier, entry)
 }
 
 //func (repo Repository[TEntryIdentifier, TEntry]) GetEntryById(identity TEntryIdentifier) (RepositoryEntry[TEntryIdentifier, TEntry], error) {
 //	return repo.GetEntryByName(identity.GetNamespace(), identity.GetName())
 //}
 
-func (repo Repository[TEntry]) GetEntryById(identity EntryIdentifier) (*RepositoryEntry[TEntry], error) {
+func (repo Repository[TEntry, TBehavior]) GetEntryById(identity EntryIdentifier) (*RepositoryEntry[TEntry, TBehavior], error) {
 	return repo.GetEntryByName(identity.GetNamespace(), identity.GetName())
 }
 
-func (repo Repository[TEntry]) GetEntryByName(namespace string, name string) (*RepositoryEntry[TEntry], error) {
+func (repo Repository[TEntry, TBehavior]) GetEntryByName(namespace string, name string) (*RepositoryEntry[TEntry, TBehavior], error) {
 	findNs, nsExists := repo.entriesByNamespace[namespace]
 
 	if !nsExists {

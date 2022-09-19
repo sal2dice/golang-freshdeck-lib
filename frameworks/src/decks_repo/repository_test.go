@@ -11,24 +11,33 @@ func (store *MockRepositoryStore) WriteRecord() {
 
 }
 
+type MockBehaviorFactory struct {
+}
+
+func (m MockBehaviorFactory) GetBehavior(identity EntryIdentifier, entry string) string {
+	//TODO implement me
+	//	panic("implement me")
+	return "a"
+}
+
 //type NewType = RepositoryEntry[SimpleIdentifier, string]
 
 // TestHelloName calls greetings.Hello with a name, checking
 // for a valid return value.
 func TestEntryAssignment(t *testing.T) {
 	var rs = MockRepositoryStore{}
+	var bh = MockBehaviorFactory{}
 
-	var repo = NewRepository[SimpleIdentifier, string](&rs)
+	var repo = NewRepository[string, string](&rs, &bh)
 
 	if repo.store == nil {
 		t.Fatalf("NO!")
 	}
 
 	var entry = "foo"
+	idObj := SimpleIdentifier{"ns", "name"}
 
-	var idObj = SimpleIdentifier{namespace: "ns", name: "myName"}
-
-	repo.AddEntry(RepositoryEntry[string]{idObj, entry})
+	repo.AddEntry(RepositoryEntry[string, string]{idObj, entry, "behavior"})
 	repo.AddEntryById(idObj, entry)
 	repo.AddEntryByName("ns", "myName2", entry)
 
@@ -38,22 +47,4 @@ func TestEntryAssignment(t *testing.T) {
 		t.Fatalf("NO!")
 	}
 
-}
-
-// TestHelloEmpty calls greetings.Hello with an empty string,
-// checking for an error.
-func TestEntryAssignment2(t *testing.T) {
-	var rs = MockRepositoryStore{}
-
-	var repo = NewRepository[SimpleIdentifier, string](&rs)
-
-	if repo.store == nil {
-		t.Fatalf("NO!")
-	}
-
-	var entry = "foo"
-
-	repo.AddEntry(RepositoryEntry[string]{SimpleIdentifier{namespace: "ns", name: "myName1"}, entry})
-	repo.AddEntryById(SimpleIdentifier{namespace: "ns", name: "myName"}, entry)
-	//	repo.AddValue("ns", "myName2", entry)
 }

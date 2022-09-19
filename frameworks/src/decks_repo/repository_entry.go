@@ -18,7 +18,8 @@ func (s SimpleIdentifier) GetName() string {
 	return s.name
 }
 
-type RepositoryEntry[TEntry any] struct {
+type RepositoryEntry[TEntry any, TBehavior any] struct {
 	identity EntryIdentifier
 	entry    TEntry
+	behavior TBehavior
 }
